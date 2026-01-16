@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { DataSource } from 'typeorm'
-import { User, UsageLog, ApiKey, Payment } from './entities'
+import { User, UsageLog, ApiKey, Payment, EmailVerification } from './entities'
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'imagegen',
   synchronize: true, // Set to false in production
   logging: process.env.NODE_ENV === 'development',
-  entities: [User, UsageLog, ApiKey, Payment],
+  entities: [User, UsageLog, ApiKey, Payment, EmailVerification],
   migrations: [],
   subscribers: [],
 })

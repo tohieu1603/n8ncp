@@ -13,15 +13,17 @@ export interface AuthRequest extends Request {
  * Validates Bearer token and attaches user to request
  */
 export function authMiddleware(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
-) {
+): void {
+  const authReq = req as AuthRequest
   const authHeader = req.headers.authorization
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     logger.warn('Auth failed: No token provided', { path: req.path })
-    return response.unauthorized(res, 'No token provided')
+    response.unauthorized(res, 'No token provided')
+    return
   }
 
   const token = authHeader.split(' ')[1]
@@ -29,10 +31,11 @@ export function authMiddleware(
 
   if (!result.success || !result.payload) {
     logger.warn('Auth failed: Invalid token', { path: req.path, error: result.error })
-    return response.unauthorized(res, result.error || 'Invalid token')
+    response.unauthorized(res, result.error || 'Invalid token')
+    return
   }
 
-  req.user = result.payload
+  authReq.user = result.payload
   next()
 }
 
@@ -40,10 +43,11 @@ export function authMiddleware(
  * Optional auth middleware - doesn't fail if no token
  */
 export function optionalAuthMiddleware(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
-) {
+): void {
+  const authReq = req as AuthRequest
   const authHeader = req.headers.authorization
 
   if (authHeader?.startsWith('Bearer ')) {
@@ -51,7 +55,7 @@ export function optionalAuthMiddleware(
     const result = verifyToken(token)
 
     if (result.success && result.payload) {
-      req.user = result.payload
+      authReq.user = result.payload
     }
   }
 

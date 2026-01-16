@@ -42,11 +42,12 @@ export const response = {
   /**
    * Send error response
    */
-  error(res: Response, message: string, statusCode = 500): Response {
+  error<T = unknown>(res: Response, message: string, statusCode = 500, data?: T): Response {
     return res.status(statusCode).json({
       success: false,
       error: message,
-    } as ApiResponse)
+      data,
+    } as ApiResponse<T>)
   },
 
   /**

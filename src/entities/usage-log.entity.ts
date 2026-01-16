@@ -8,7 +8,7 @@ import {
 } from 'typeorm'
 import { User } from './user.entity'
 
-export type ActionType = 'generate_image' | 'login' | 'logout' | 'register' | 'chat' | 'chat_stream' | 'api_chat' | 'api_chat_stream' | 'api_image_generation' | 'convert_word_to_pdf' | 'convert_pdf_to_word' | 'document_conversion'
+export type ActionType = 'generate_image' | 'login' | 'logout' | 'register' | 'chat' | 'chat_stream' | 'api_chat' | 'api_chat_stream' | 'api_image_generation' | 'convert_word_to_pdf' | 'convert_pdf_to_word' | 'document_conversion' | 'google_login'
 
 @Entity('usage_logs')
 export class UsageLog {

@@ -1,4 +1,4 @@
-import { Router, Response } from 'express'
+import { Router, Request, Response } from 'express'
 import { authMiddleware, AuthRequest } from '../middlewares/auth.middleware'
 import { logUsage } from '../services/usage.service'
 import { response } from '../utils/response'
@@ -28,7 +28,8 @@ interface ConvertJob {
  * POST /api/convert/word-to-pdf
  * Convert Word document to PDF
  */
-router.post('/word-to-pdf', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/word-to-pdf', authMiddleware, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest
   try {
     const { fileUrl, fileName } = req.body
 
@@ -37,7 +38,7 @@ router.post('/word-to-pdf', authMiddleware, async (req: AuthRequest, res: Respon
     }
 
     logger.info('Starting Word to PDF conversion', {
-      userId: req.user!.userId,
+      userId: authReq.user!.userId,
       fileName,
     })
 
@@ -77,7 +78,7 @@ router.post('/word-to-pdf', authMiddleware, async (req: AuthRequest, res: Respon
       logger.error('CloudConvert job creation failed', { error: errorData })
 
       await logUsage({
-        userId: req.user!.userId,
+        userId: authReq.user!.userId,
         action: 'convert_word_to_pdf',
         success: false,
         metadata: {
@@ -110,7 +111,8 @@ router.post('/word-to-pdf', authMiddleware, async (req: AuthRequest, res: Respon
  * POST /api/convert/pdf-to-word
  * Convert PDF to Word document
  */
-router.post('/pdf-to-word', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/pdf-to-word', authMiddleware, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest
   try {
     const { fileUrl, fileName } = req.body
 
@@ -119,7 +121,7 @@ router.post('/pdf-to-word', authMiddleware, async (req: AuthRequest, res: Respon
     }
 
     logger.info('Starting PDF to Word conversion', {
-      userId: req.user!.userId,
+      userId: authReq.user!.userId,
       fileName,
     })
 
@@ -159,7 +161,7 @@ router.post('/pdf-to-word', authMiddleware, async (req: AuthRequest, res: Respon
       logger.error('CloudConvert job creation failed', { error: errorData })
 
       await logUsage({
-        userId: req.user!.userId,
+        userId: authReq.user!.userId,
         action: 'convert_pdf_to_word',
         success: false,
         metadata: {
@@ -192,7 +194,8 @@ router.post('/pdf-to-word', authMiddleware, async (req: AuthRequest, res: Respon
  * GET /api/convert/status
  * Get conversion job status
  */
-router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/status', authMiddleware, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest
   try {
     const { jobId } = req.query
 
@@ -228,7 +231,7 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) =>
 
       // Log successful conversion
       await logUsage({
-        userId: req.user!.userId,
+        userId: authReq.user!.userId,
         action: 'document_conversion',
         success: true,
         metadata: {
@@ -239,12 +242,12 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) =>
         },
       })
 
-      logger.info('Conversion completed', { jobId, userId: req.user!.userId })
+      logger.info('Conversion completed', { jobId, userId: authReq.user!.userId })
     } else if (data.status === 'error') {
       status = 'failed'
 
       await logUsage({
-        userId: req.user!.userId,
+        userId: authReq.user!.userId,
         action: 'document_conversion',
         success: false,
         metadata: {
@@ -273,7 +276,8 @@ router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) =>
  * POST /api/convert/upload
  * Upload file and get URL for conversion
  */
-router.post('/upload', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/upload', authMiddleware, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest
   try {
     const { fileData, fileName, mimeType } = req.body
 

@@ -5,6 +5,8 @@ import cors from 'cors'
 import { AppDataSource } from './data-source'
 import { authRoutes, generateRoutes, usageRoutes, downloadRoutes, chatRoutes, keysRoutes, billingRoutes, convertRoutes } from './routes'
 import openaiRoutes from './routes/openai.routes'
+import googleAuthRoutes from './routes/google-auth.routes'
+import passport from 'passport'
 import {
   requestLogger,
   generalLimiter,
@@ -35,17 +37,20 @@ app.use(express.json({ limit: '5mb' })) // Reduced from 10mb for security
 app.use(requestLogger)
 app.use(inputSanitization) // Check for attack patterns
 app.use(generalLimiter) // Apply general rate limit to all routes
+app.use(passport.initialize()) // Initialize passport for Google OAuth
 
 // Routes with specific rate limits
 app.use('/api/auth/login', authLimiter)
 app.use('/api/auth/register', registerLimiter)
 app.use('/api/auth', authRoutes)
+app.use('/api/auth', googleAuthRoutes) // Google OAuth routes
 app.use('/api/generate', generateLimiter, generateRoutes)
 app.use('/api/usage', usageRoutes)
 app.use('/api/download', downloadRoutes)
 app.use('/api/chat', chatLimiter, chatRoutes)
 app.use('/api/keys', keysLimiter, keysRoutes)
 app.use('/api/billing', billingLimiter, billingRoutes)
+app.use('/api/sepay', billingRoutes) // Alias for SePay webhook
 app.use('/api/convert', convertRoutes)
 
 // OpenAI-compatible API (for external API key access)

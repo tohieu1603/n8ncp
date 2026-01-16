@@ -16,8 +16,8 @@ export class User {
   @Column({ unique: true })
   email: string
 
-  @Column()
-  password: string
+  @Column({ nullable: true, type: 'varchar' })
+  password: string | null
 
   @Column({ nullable: true, type: 'varchar' })
   name: string | null
@@ -31,9 +31,6 @@ export class User {
   @Column({ type: 'bigint', default: 0 })
   tokenBalance: number
 
-  @Column({ type: 'bigint', default: 100000 })
-  tokenLimit: number
-
   @Column({ default: false })
   isPro: boolean
 
@@ -42,6 +39,16 @@ export class User {
 
   @Column({ default: true })
   isActive: boolean
+
+  @Column({ default: false })
+  isEmailVerified: boolean
+
+  // Google OAuth fields
+  @Column({ nullable: true, type: 'varchar' })
+  googleId: string | null
+
+  @Column({ nullable: true, type: 'varchar' })
+  avatarUrl: string | null
 
   @CreateDateColumn()
   createdAt: Date
