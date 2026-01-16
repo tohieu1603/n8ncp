@@ -32,6 +32,9 @@ export interface PaymentHistoryItem {
   status: string
   description: string
   createdAt: Date
+  transactionId?: string
+  qrCode?: string
+  expiresAt?: Date
 }
 
 export interface CreatePaymentResult {

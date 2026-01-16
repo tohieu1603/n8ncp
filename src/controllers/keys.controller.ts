@@ -70,11 +70,11 @@ export class KeysController {
         return
       }
 
-      // Check limit (max 5 keys per user)
+      // Check limit (max 10 keys per user)
       const existingCount = await apiKeyRepository.countByUserId(req.user!.userId)
 
-      if (existingCount >= 5) {
-        response.badRequest(res, 'Maximum 5 API keys allowed per account')
+      if (existingCount >= 10) {
+        response.badRequest(res, 'Maximum 10 API keys allowed per account')
         return
       }
 
