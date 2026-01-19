@@ -112,7 +112,7 @@ router.get(
       }
 
       // Generate JWT token
-      const token = signToken({ userId: user.id, email: user.email })
+      const token = signToken({ userId: user.id, email: user.email, role: user.role })
 
       // Log activity
       await logUsage({
@@ -195,7 +195,7 @@ router.post('/google/token', async (req: Request, res: Response) => {
     }
 
     // Generate JWT token
-    const token = signToken({ userId: user.id, email: user.email })
+    const token = signToken({ userId: user.id, email: user.email, role: user.role })
 
     // Log activity
     await logUsage({

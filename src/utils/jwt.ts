@@ -16,6 +16,7 @@ if (process.env.NODE_ENV === 'production' && JWT_SECRET.length < 32) {
 export interface JwtPayload {
   userId: string
   email: string
+  role: 'user' | 'admin'
   iat?: number
   exp?: number
 }

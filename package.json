@@ -9,6 +9,8 @@
     "start": "node dist/index.js",
     "typeorm": "typeorm-ts-node-commonjs",
     "seed": "ts-node src/seeds/seed-demo-user.ts",
+    "seed:admin": "ts-node src/seeds/seed-admin.ts",
+    "seed:posts": "ts-node src/seeds/seed-posts.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

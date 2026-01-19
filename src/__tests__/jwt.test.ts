@@ -5,6 +5,7 @@ describe('JWT Utilities', () => {
   const testPayload = {
     userId: 'test-user-123',
     email: 'test@example.com',
+    role: 'user' as const,
   }
 
   describe('signToken', () => {

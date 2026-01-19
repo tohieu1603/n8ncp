@@ -1,4 +1,5 @@
 export { authMiddleware, optionalAuthMiddleware } from './auth.middleware'
+export { adminMiddleware } from './admin.middleware'
 export type { AuthRequest } from './auth.middleware'
 export { requestLogger } from './request-logger.middleware'
 export {

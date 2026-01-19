@@ -1,5 +1,6 @@
-export { User } from './user.entity'
+export { User, UserRole } from './user.entity'
 export { UsageLog, ActionType } from './usage-log.entity'
 export { ApiKey } from './api-key.entity'
 export { Payment, PaymentStatus } from './payment.entity'
 export { EmailVerification } from './email-verification.entity'
+export { Post, PostStatus, BlockContent, SeoMeta } from './post.entity'

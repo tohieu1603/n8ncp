@@ -3,9 +3,10 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { AppDataSource } from './data-source'
-import { authRoutes, generateRoutes, usageRoutes, downloadRoutes, chatRoutes, keysRoutes, billingRoutes, convertRoutes } from './routes'
+import { authRoutes, generateRoutes, usageRoutes, downloadRoutes, chatRoutes, keysRoutes, billingRoutes, convertRoutes, adminRoutes, articleImageRoutes, blogRoutes } from './routes'
 import openaiRoutes from './routes/openai.routes'
 import googleAuthRoutes from './routes/google-auth.routes'
+import { billingController } from './controllers/billing.controller'
 import passport from 'passport'
 import {
   requestLogger,
@@ -36,6 +37,11 @@ app.use(cors({
 app.use(express.json({ limit: '5mb' })) // Reduced from 10mb for security
 app.use(requestLogger)
 app.use(inputSanitization) // Check for attack patterns
+
+// SePay webhook routes - BEFORE rate limiter to allow external callbacks
+app.post('/api/billing/webhook', (req, res) => billingController.handleWebhook(req, res))
+app.post('/api/sepay/webhook', (req, res) => billingController.handleWebhook(req, res))
+
 app.use(generalLimiter) // Apply general rate limit to all routes
 app.use(passport.initialize()) // Initialize passport for Google OAuth
 
@@ -52,6 +58,9 @@ app.use('/api/keys', keysLimiter, keysRoutes)
 app.use('/api/billing', billingLimiter, billingRoutes)
 app.use('/api/sepay', billingRoutes) // Alias for SePay webhook
 app.use('/api/convert', convertRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/article-images', generateLimiter, articleImageRoutes)
+app.use('/api/blog', blogRoutes)
 
 // OpenAI-compatible API (for external API key access)
 app.use('/v1', openaiApiLimiter, openaiRoutes)

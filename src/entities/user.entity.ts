@@ -8,6 +8,8 @@ import {
 } from 'typeorm'
 import { UsageLog } from './usage-log.entity'
 
+export type UserRole = 'user' | 'admin'
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -21,6 +23,9 @@ export class User {
 
   @Column({ nullable: true, type: 'varchar' })
   name: string | null
+
+  @Column({ type: 'varchar', default: 'user' })
+  role: UserRole
 
   @Column({ type: 'decimal', precision: 10, scale: 4, default: 0 })
   creditsUsed: number

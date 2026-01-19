@@ -38,6 +38,7 @@ export interface UserResponse {
   id: string
   email: string
   name: string | null
+  role: 'user' | 'admin'
   creditsUsed: number
   totalSpentUsd: number
   tokenBalance: number
@@ -65,6 +66,7 @@ function formatUserResponse(user: User, includeCreatedAt = false): UserResponse 
     id: user.id,
     email: user.email,
     name: user.name,
+    role: user.role,
     creditsUsed: user.creditsUsed,
     totalSpentUsd: user.totalSpentUsd,
     tokenBalance: Number(user.tokenBalance),
@@ -203,7 +205,7 @@ export class AuthService {
     logger.info('Email verified', { userId: user.id, email: user.email })
 
     // Generate token
-    const token = signToken({ userId: user.id, email: user.email })
+    const token = signToken({ userId: user.id, email: user.email, role: user.role })
 
     return {
       token,
@@ -287,7 +289,7 @@ export class AuthService {
     })
 
     // Generate token
-    const token = signToken({ userId: user.id, email: user.email })
+    const token = signToken({ userId: user.id, email: user.email, role: user.role })
 
     return {
       token,
@@ -378,7 +380,7 @@ export class AuthService {
     }
 
     // Generate token
-    const token = signToken({ userId: user.id, email: user.email })
+    const token = signToken({ userId: user.id, email: user.email, role: user.role })
 
     return {
       token,
