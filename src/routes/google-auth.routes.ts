@@ -11,8 +11,22 @@ import { logUsage } from '../services/usage.service'
 const router = Router()
 const userRepository = () => AppDataSource.getRepository(User)
 
-// Frontend URL for redirect after OAuth
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+// Allowed frontend URLs for redirect after OAuth
+const ALLOWED_FRONTENDS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map(url => url.trim())
+const DEFAULT_FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+
+// Get valid frontend URL from referer or default
+function getRedirectUrl(req: Request): string {
+  const referer = req.get('referer') || req.get('origin') || ''
+  for (const allowed of ALLOWED_FRONTENDS) {
+    if (referer.startsWith(allowed)) {
+      return allowed
+    }
+  }
+  return DEFAULT_FRONTEND_URL
+}
 
 // Configure Google Strategy
 passport.use(
@@ -85,30 +99,48 @@ passport.deserializeUser(async (id: string, done) => {
 /**
  * GET /api/auth/google
  * Initiate Google OAuth flow
+ * Encodes redirect URL in state to return user to correct frontend
  */
-router.get(
-  '/google',
+router.get('/google', (req: Request, res, next) => {
+  const redirectUrl = getRedirectUrl(req)
+  const state = Buffer.from(JSON.stringify({ redirectUrl })).toString('base64')
+
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     session: false,
-  })
-)
+    state,
+  })(req, res, next)
+})
 
 /**
  * GET /api/auth/google/callback
- * Google OAuth callback
+ * Google OAuth callback - redirects to frontend with token
  */
 router.get(
   '/google/callback',
   passport.authenticate('google', {
     session: false,
-    failureRedirect: `${FRONTEND_URL}?error=google_auth_failed`,
+    failureRedirect: `${DEFAULT_FRONTEND_URL}?error=google_auth_failed`,
   }),
   async (req: Request, res: Response) => {
+    // Parse redirect URL from state parameter
+    let frontendUrl = DEFAULT_FRONTEND_URL
+    try {
+      const state = req.query.state as string
+      if (state) {
+        const decoded = JSON.parse(Buffer.from(state, 'base64').toString())
+        if (decoded.redirectUrl && ALLOWED_FRONTENDS.includes(decoded.redirectUrl)) {
+          frontendUrl = decoded.redirectUrl
+        }
+      }
+    } catch {
+      // Use default if state parsing fails
+    }
+
     try {
       const user = req.user as User
       if (!user) {
-        return res.redirect(`${FRONTEND_URL}?error=no_user`)
+        return res.redirect(`${frontendUrl}?error=no_user`)
       }
 
       // Generate JWT token
@@ -122,13 +154,13 @@ router.get(
         metadata: { ip: req.ip, userAgent: req.get('user-agent') },
       })
 
-      logger.info('User logged in via Google', { userId: user.id, email: user.email })
+      logger.info('User logged in via Google', { userId: user.id, email: user.email, redirectTo: frontendUrl })
 
       // Redirect to frontend with token
-      res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}`)
+      res.redirect(`${frontendUrl}/auth/callback?token=${token}`)
     } catch (error) {
       logger.error('Google callback error', error as Error)
-      res.redirect(`${FRONTEND_URL}?error=callback_failed`)
+      res.redirect(`${frontendUrl}?error=callback_failed`)
     }
   }
 )

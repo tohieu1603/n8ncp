@@ -235,9 +235,11 @@ export function setupSwagger(app: Express): void {
     customSiteTitle: 'ImageGen AI API Docs',
   }))
 
-  // JSON spec endpoint
+  // JSON spec endpoint with CORS
   app.get('/api-docs.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET')
     res.send(swaggerSpec)
   })
 }
