@@ -22,6 +22,7 @@ import {
   inputSanitization,
 } from './middlewares'
 import { logger } from './utils'
+import { setupSwagger } from './swagger'
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -36,6 +37,9 @@ app.use(cors({
 }))
 app.use(express.json({ limit: '5mb' })) // Reduced from 10mb for security
 app.use(requestLogger)
+
+// Swagger API Documentation
+setupSwagger(app)
 app.use(inputSanitization) // Check for attack patterns
 
 // SePay webhook routes - BEFORE rate limiter to allow external callbacks
