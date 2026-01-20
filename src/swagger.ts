@@ -21,8 +21,8 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: '/',
-        description: 'Current server (auto-detect from browser URL)',
+        url: process.env.API_URL || 'http://localhost:4000',
+        description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
       },
     ],
     components: {

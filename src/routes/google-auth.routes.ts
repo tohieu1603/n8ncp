@@ -119,6 +119,7 @@ router.get('/google', (req: Request, res, next) => {
     scope: ['profile', 'email'],
     session: false,
     state,
+    prompt: 'select_account', // Always show account selector
   })(req, res, next)
 })
 
