@@ -441,10 +441,18 @@ Luôn trả về JSON hợp lệ.`,
   },
 } as const
 
-// Helper to check if agent requires Pro subscription
+// Helper to check if agent is Pro tier
 export function isProAgent(agentId: string): boolean {
   const agent = AGENTS[agentId as AgentId]
   return agent?.tier === 'pro'
+}
+
+// Token multiplier for Pro agents (2x cost for Pro features)
+export const PRO_TOKEN_MULTIPLIER = 2
+
+// Get token multiplier based on agent tier
+export function getTokenMultiplier(agentId: string): number {
+  return isProAgent(agentId) ? PRO_TOKEN_MULTIPLIER : 1
 }
 
 // Get agents grouped by category
@@ -513,8 +521,13 @@ export interface StreamChunk {
 // Pricing per 1K tokens (approximate based on typical API pricing)
 const TOKEN_PRICE_PER_1K = 0.001 // $0.001 per 1K tokens
 
-export function calculateCost(tokens: number): number {
-  return (tokens / 1000) * TOKEN_PRICE_PER_1K
+export function calculateCost(tokens: number, multiplier: number = 1): number {
+  return (tokens / 1000) * TOKEN_PRICE_PER_1K * multiplier
+}
+
+// Calculate tokens with multiplier applied
+export function calculateTokensWithMultiplier(tokens: number, agentId: string): number {
+  return tokens * getTokenMultiplier(agentId)
 }
 
 // Get current date context for system prompt

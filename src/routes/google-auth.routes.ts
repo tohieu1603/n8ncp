@@ -17,14 +17,22 @@ const ALLOWED_FRONTENDS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000
   .map(url => url.trim())
 const DEFAULT_FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
-// Get valid frontend URL from referer or default
+// Get valid frontend URL from query param, referer, or default
 function getRedirectUrl(req: Request): string {
+  // Priority 1: Check redirect_uri query parameter (passed from frontend)
+  const redirectUri = req.query.redirect_uri as string
+  if (redirectUri && ALLOWED_FRONTENDS.includes(redirectUri)) {
+    return redirectUri
+  }
+
+  // Priority 2: Check referer/origin header
   const referer = req.get('referer') || req.get('origin') || ''
   for (const allowed of ALLOWED_FRONTENDS) {
     if (referer.startsWith(allowed)) {
       return allowed
     }
   }
+
   return DEFAULT_FRONTEND_URL
 }
 
@@ -104,6 +112,8 @@ passport.deserializeUser(async (id: string, done) => {
 router.get('/google', (req: Request, res, next) => {
   const redirectUrl = getRedirectUrl(req)
   const state = Buffer.from(JSON.stringify({ redirectUrl })).toString('base64')
+
+  logger.debug('Google OAuth initiated', { redirectUrl })
 
   passport.authenticate('google', {
     scope: ['profile', 'email'],

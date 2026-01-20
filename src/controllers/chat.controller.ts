@@ -1,7 +1,6 @@
 import { Response } from 'express'
-import { chat, chatStream, AGENTS, AgentId, calculateCost, ChatMessage, isProAgent } from '../services/gemini-chat.service'
+import { chat, chatStream, AGENTS, AgentId, calculateCost, ChatMessage, isProAgent, getTokenMultiplier, calculateTokensWithMultiplier } from '../services/gemini-chat.service'
 import { logUsage, updateUserCredits } from '../services/usage.service'
-import { userRepository } from '../repositories/user.repository'
 import { response } from '../utils/response'
 import { validate } from '../utils/validation'
 import { logger } from '../utils/logger'
@@ -59,14 +58,9 @@ export class ChatController {
 
       const validAgentId: AgentId = AGENTS[agentId as AgentId] ? agentId : 'general_base'
 
-      // Check Pro access for Pro agents
-      if (isProAgent(validAgentId)) {
-        const user = await userRepository.findById(req.user!.userId)
-        if (!user || !userRepository.hasProAccess(user)) {
-          response.forbidden(res, 'Pro subscription required to use this agent')
-          return
-        }
-      }
+      // Get token multiplier for Pro agents (2x for Pro, 1x for base)
+      const tokenMultiplier = getTokenMultiplier(validAgentId)
+      const isPro = isProAgent(validAgentId)
 
       // Build chat messages
       const chatMessages: ChatMessage[] = messages.map((msg: { role: string; content: string }) => ({
@@ -86,32 +80,38 @@ export class ChatController {
         }
       }
 
-      logger.debug('Chat request', { userId: req.user!.userId, agentId: validAgentId })
+      logger.debug('Chat request', { userId: req.user!.userId, agentId: validAgentId, isPro, tokenMultiplier })
 
       const result = await chat({
         messages: chatMessages,
         agentId: validAgentId,
       })
 
-      const totalTokens = result.usage?.total_tokens || 0
-      const cost = calculateCost(totalTokens)
+      const rawTokens = result.usage?.total_tokens || 0
+      // Apply multiplier: Pro agents cost 2x tokens
+      const billedTokens = calculateTokensWithMultiplier(rawTokens, validAgentId)
+      const cost = calculateCost(rawTokens, tokenMultiplier)
 
       // Log usage
-      await logUsage(req.user!.userId, 'chat', totalTokens, cost, true, {
+      await logUsage(req.user!.userId, 'chat', billedTokens, cost, true, {
         agentId: validAgentId,
         messageCount: messages.length,
-        tokens: totalTokens,
+        rawTokens,
+        billedTokens,
+        tokenMultiplier,
       })
 
-      // Update user credits
-      await updateUserCredits(req.user!.userId, totalTokens, cost)
+      // Update user credits with billed tokens
+      await updateUserCredits(req.user!.userId, billedTokens, cost)
 
       response.success(res, {
         message: result.choices[0]?.message?.content || '',
         usage: {
           promptTokens: result.usage?.prompt_tokens || 0,
           completionTokens: result.usage?.completion_tokens || 0,
-          totalTokens,
+          totalTokens: rawTokens,
+          billedTokens,
+          tokenMultiplier,
           cost,
         },
       })
@@ -147,14 +147,8 @@ export class ChatController {
 
       const validAgentId: AgentId = AGENTS[agentId as AgentId] ? agentId : 'general_base'
 
-      // Check Pro access for Pro agents
-      if (isProAgent(validAgentId)) {
-        const user = await userRepository.findById(req.user!.userId)
-        if (!user || !userRepository.hasProAccess(user)) {
-          response.forbidden(res, 'Pro subscription required to use this agent')
-          return
-        }
-      }
+      // Get token multiplier for Pro agents (2x for Pro, 1x for base)
+      const tokenMultiplier = getTokenMultiplier(validAgentId)
 
       // Build chat messages
       const chatMessages: ChatMessage[] = messages.map((msg: { role: string; content: string }) => ({
@@ -194,20 +188,24 @@ export class ChatController {
 
       // Estimate total tokens
       const outputTokens = Math.ceil(totalContent.length / 4)
-      const estimatedTokens = inputTokens + outputTokens
-      const cost = calculateCost(estimatedTokens)
+      const rawTokens = inputTokens + outputTokens
+      // Apply multiplier: Pro agents cost 2x tokens
+      const billedTokens = calculateTokensWithMultiplier(rawTokens, validAgentId)
+      const cost = calculateCost(rawTokens, tokenMultiplier)
 
       // Log usage
-      await logUsage(req.user!.userId, 'chat_stream', estimatedTokens, cost, true, {
+      await logUsage(req.user!.userId, 'chat_stream', billedTokens, cost, true, {
         agentId: validAgentId,
         inputTokens,
         outputTokens,
-        estimatedTokens,
+        rawTokens,
+        billedTokens,
+        tokenMultiplier,
       })
 
-      await updateUserCredits(req.user!.userId, estimatedTokens, cost)
+      await updateUserCredits(req.user!.userId, billedTokens, cost)
 
-      res.write(`data: ${JSON.stringify({ done: true, usage: { estimatedTokens, cost } })}\n\n`)
+      res.write(`data: ${JSON.stringify({ done: true, usage: { rawTokens, billedTokens, tokenMultiplier, cost } })}\n\n`)
       res.end()
     } catch (error) {
       logger.error('Chat stream error', error as Error)
