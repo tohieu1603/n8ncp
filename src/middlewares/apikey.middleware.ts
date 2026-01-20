@@ -5,6 +5,14 @@ import { logger } from '../utils/logger'
 import { AppDataSource } from '../data-source'
 import { ApiKey, User } from '../entities'
 
+// SECURITY: Pepper for API key hashing (adds extra layer of protection)
+const API_KEY_PEPPER = process.env.API_KEY_PEPPER || 'default-api-key-pepper-change-in-production'
+
+// Warn in production if using default pepper
+if (process.env.NODE_ENV === 'production' && API_KEY_PEPPER === 'default-api-key-pepper-change-in-production') {
+  throw new Error('CRITICAL SECURITY ERROR: API_KEY_PEPPER must be set in production')
+}
+
 export interface ApiKeyRequest extends Request {
   apiUser?: {
     userId: string
@@ -14,10 +22,11 @@ export interface ApiKeyRequest extends Request {
 }
 
 /**
- * Hash API key for comparison
+ * Hash API key for comparison with pepper
+ * SECURITY: Uses HMAC-SHA256 with pepper instead of plain SHA256
  */
 function hashApiKey(key: string): string {
-  return crypto.createHash('sha256').update(key).digest('hex')
+  return crypto.createHmac('sha256', API_KEY_PEPPER).update(key).digest('hex')
 }
 
 /**

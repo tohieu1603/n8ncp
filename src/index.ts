@@ -1,5 +1,10 @@
 import 'reflect-metadata'
 import 'dotenv/config'
+
+// SECURITY: Validate environment variables before anything else
+import { validateEnvironment } from './utils/env-validation'
+validateEnvironment()
+
 import express from 'express'
 import cors from 'cors'
 import { AppDataSource } from './data-source'

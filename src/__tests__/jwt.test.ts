@@ -62,8 +62,8 @@ describe('JWT Utilities', () => {
     })
 
     it('should return success false for expired token', () => {
-      // Create token with expired time
-      const expiredToken = jwt.sign(testPayload, 'test-jwt-secret-key-for-testing', {
+      // Create token with expired time - use same secret as setup.ts
+      const expiredToken = jwt.sign(testPayload, 'test-jwt-secret-key-for-testing!!', {
         expiresIn: '-1h',
       })
       const result = verifyToken(expiredToken)
@@ -87,7 +87,7 @@ describe('JWT Utilities', () => {
     })
 
     it('should decode token even with wrong secret', () => {
-      const token = jwt.sign(testPayload, 'different-secret')
+      const token = jwt.sign(testPayload, 'different-secret-that-is-long-enough!')
       const decoded = decodeToken(token)
       expect(decoded).not.toBeNull()
       expect(decoded?.userId).toBe(testPayload.userId)
@@ -106,7 +106,7 @@ describe('JWT Utilities', () => {
     })
 
     it('should return true for expired token', () => {
-      const expiredToken = jwt.sign(testPayload, 'test-jwt-secret-key-for-testing', {
+      const expiredToken = jwt.sign(testPayload, 'test-jwt-secret-key-for-testing!!', {
         expiresIn: '-1h',
       })
       expect(isTokenExpired(expiredToken)).toBe(true)
@@ -117,7 +117,7 @@ describe('JWT Utilities', () => {
     })
 
     it('should return true for token without exp claim', () => {
-      const tokenWithoutExp = jwt.sign(testPayload, 'test-jwt-secret-key-for-testing', {
+      const tokenWithoutExp = jwt.sign(testPayload, 'test-jwt-secret-key-for-testing!!', {
         noTimestamp: true,
       })
       expect(isTokenExpired(tokenWithoutExp)).toBe(true)

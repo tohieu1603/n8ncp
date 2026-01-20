@@ -1,6 +1,6 @@
 // Jest setup file
-// Set test environment variables
-process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing'
+// Set test environment variables (min 32 chars for security tests)
+process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing!!'
 process.env.JWT_EXPIRES_IN = '1h'
 process.env.LOG_LEVEL = 'error' // Suppress logs during tests
 process.env.KIE_API_KEY = 'test-api-key'

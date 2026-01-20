@@ -55,6 +55,11 @@ export class User {
   @Column({ nullable: true, type: 'varchar' })
   avatarUrl: string | null
 
+  // Track if user has received welcome bonus (100 tokens)
+  // Prevents duplicate bonus on re-login or account linking
+  @Column({ default: false })
+  hasReceivedWelcomeBonus: boolean
+
   @CreateDateColumn()
   createdAt: Date
 

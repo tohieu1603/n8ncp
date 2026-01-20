@@ -2,15 +2,18 @@ import jwt, { SignOptions, Algorithm } from 'jsonwebtoken'
 import { logger } from './logger'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key'
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as SignOptions['expiresIn']
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '4h') as SignOptions['expiresIn'] // Reduced from 7d to 4h
 const JWT_ALGORITHM: Algorithm = 'HS256'
+const MIN_SECRET_LENGTH = 64
 
-// Warn if using default/weak secret in production
-if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'your-super-secret-jwt-key') {
-  logger.error('SECURITY WARNING: Using default JWT secret in production! Set JWT_SECRET env variable.')
-}
-if (process.env.NODE_ENV === 'production' && JWT_SECRET.length < 32) {
-  logger.warn('SECURITY WARNING: JWT_SECRET should be at least 32 characters long')
+// SECURITY: Enforce strong JWT secret in production - THROW ERROR, not just log
+if (process.env.NODE_ENV === 'production') {
+  if (JWT_SECRET === 'your-super-secret-jwt-key') {
+    throw new Error('CRITICAL SECURITY ERROR: Using default JWT secret in production! Set JWT_SECRET env variable.')
+  }
+  if (JWT_SECRET.length < MIN_SECRET_LENGTH) {
+    throw new Error(`CRITICAL SECURITY ERROR: JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters in production (current: ${JWT_SECRET.length})`)
+  }
 }
 
 export interface JwtPayload {

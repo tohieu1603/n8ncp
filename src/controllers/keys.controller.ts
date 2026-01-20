@@ -6,14 +6,18 @@ import { validate } from '../utils/validation'
 import { logger } from '../utils/logger'
 import { AuthRequest } from '../middlewares/auth.middleware'
 
+// SECURITY: Pepper for API key hashing (must match apikey.middleware.ts)
+const API_KEY_PEPPER = process.env.API_KEY_PEPPER || 'default-api-key-pepper-change-in-production'
+
 // Generate a secure API key
 function generateApiKey(): string {
   return 'sk_' + crypto.randomBytes(32).toString('hex')
 }
 
-// Hash API key for storage
+// Hash API key for storage with pepper
+// SECURITY: Uses HMAC-SHA256 with pepper instead of plain SHA256
 function hashApiKey(key: string): string {
-  return crypto.createHash('sha256').update(key).digest('hex')
+  return crypto.createHmac('sha256', API_KEY_PEPPER).update(key).digest('hex')
 }
 
 /**

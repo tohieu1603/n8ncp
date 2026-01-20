@@ -99,14 +99,21 @@ export class BillingService {
 
   /**
    * Verify SePay webhook signature
+   * SECURITY: Throws error if webhook secret not configured in production
    */
   verifyWebhookSignature(body: object, signature: string | undefined): boolean {
+    // CRITICAL: Never allow unverified webhooks in production
     if (!SEPAY_WEBHOOK_SECRET) {
-      logger.warn('SEPAY_WEBHOOK_SECRET not configured - webhook verification disabled')
-      return false
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('CRITICAL: SEPAY_WEBHOOK_SECRET not configured in production!')
+        throw new Error('Webhook verification not configured')
+      }
+      logger.warn('SEPAY_WEBHOOK_SECRET not configured - webhook verification disabled in development')
+      return true // Only allow in development for testing
     }
 
     if (!signature) {
+      logger.warn('Webhook signature missing')
       return false
     }
 
@@ -117,11 +124,16 @@ export class BillingService {
       .digest('hex')
 
     try {
-      return crypto.timingSafeEqual(
+      const isValid = crypto.timingSafeEqual(
         Buffer.from(signature),
         Buffer.from(expectedSignature)
       )
+      if (!isValid) {
+        logger.warn('Webhook signature verification failed')
+      }
+      return isValid
     } catch {
+      logger.warn('Webhook signature verification error')
       return false
     }
   }

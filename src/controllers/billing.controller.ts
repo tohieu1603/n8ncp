@@ -5,6 +5,48 @@ import { logger } from '../utils/logger'
 import { AuthRequest } from '../middlewares/auth.middleware'
 import { AppError } from '../errors/app.error'
 
+// SECURITY: Allowed IP ranges for SePay webhooks
+// Add SePay's actual IP ranges here
+const SEPAY_ALLOWED_IPS = (process.env.SEPAY_ALLOWED_IPS || '').split(',').filter(Boolean)
+const WEBHOOK_IP_CHECK_ENABLED = process.env.NODE_ENV === 'production' && SEPAY_ALLOWED_IPS.length > 0
+
+/**
+ * Check if IP is in allowed list for webhooks
+ * SECURITY: Prevents unauthorized webhook calls
+ */
+function isAllowedWebhookIP(ip: string | undefined): boolean {
+  if (!WEBHOOK_IP_CHECK_ENABLED) {
+    return true // Skip check in development or if not configured
+  }
+
+  if (!ip) return false
+
+  // Handle IPv6 mapped IPv4 addresses
+  const normalizedIP = ip.replace(/^::ffff:/, '')
+
+  return SEPAY_ALLOWED_IPS.some(allowedIP => {
+    const trimmed = allowedIP.trim()
+    // Support CIDR notation (e.g., 192.168.1.0/24)
+    if (trimmed.includes('/')) {
+      return isIPInCIDR(normalizedIP, trimmed)
+    }
+    return normalizedIP === trimmed
+  })
+}
+
+/**
+ * Check if IP is in CIDR range
+ */
+function isIPInCIDR(ip: string, cidr: string): boolean {
+  const [range, bits] = cidr.split('/')
+  const mask = ~(2 ** (32 - parseInt(bits)) - 1)
+
+  const ipNum = ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0)
+  const rangeNum = range.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0)
+
+  return (ipNum & mask) === (rangeNum & mask)
+}
+
 /**
  * Billing Controller - handles HTTP layer for payments
  */
@@ -42,9 +84,20 @@ export class BillingController {
 
   /**
    * POST /api/billing/webhook
+   * SECURITY: IP whitelist + signature verification
    */
   async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
+      // SECURITY: Check IP whitelist first
+      if (!isAllowedWebhookIP(req.ip)) {
+        logger.warn('Webhook rejected: IP not in whitelist', {
+          ip: req.ip,
+          allowedIPs: SEPAY_ALLOWED_IPS,
+        })
+        res.status(403).json({ success: false, error: 'Forbidden' })
+        return
+      }
+
       // Verify webhook signature
       const signature = req.headers['x-sepay-signature'] as string | undefined
       if (!billingService.verifyWebhookSignature(req.body, signature)) {

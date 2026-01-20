@@ -38,17 +38,35 @@ export class AuthController {
         return
       }
 
-      // Password validation
-      if (typeof password !== 'string' || password.length < 8) {
-        response.badRequest(res, 'Password must be at least 8 characters')
-        return
-      }
-      if (!/[0-9]/.test(password) || !/[a-zA-Z]/.test(password)) {
-        response.badRequest(res, 'Password must contain at least 1 letter and 1 number')
+      // SECURITY: Strong password validation (OWASP recommendations)
+      if (typeof password !== 'string' || password.length < 12) {
+        response.badRequest(res, 'Mật khẩu phải có ít nhất 12 ký tự')
         return
       }
       if (password.length > 128) {
-        response.badRequest(res, 'Password is too long')
+        response.badRequest(res, 'Mật khẩu quá dài')
+        return
+      }
+      if (!/[a-z]/.test(password)) {
+        response.badRequest(res, 'Mật khẩu phải có ít nhất 1 chữ thường (a-z)')
+        return
+      }
+      if (!/[A-Z]/.test(password)) {
+        response.badRequest(res, 'Mật khẩu phải có ít nhất 1 chữ hoa (A-Z)')
+        return
+      }
+      if (!/[0-9]/.test(password)) {
+        response.badRequest(res, 'Mật khẩu phải có ít nhất 1 số (0-9)')
+        return
+      }
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        response.badRequest(res, 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)')
+        return
+      }
+      // Check for common weak passwords
+      const commonPasswords = ['password123', '123456789012', 'qwertyuiop12']
+      if (commonPasswords.some(p => password.toLowerCase().includes(p))) {
+        response.badRequest(res, 'Mật khẩu quá phổ biến, vui lòng chọn mật khẩu khác')
         return
       }
 

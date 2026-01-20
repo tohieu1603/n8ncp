@@ -68,9 +68,10 @@ describe('System - Environment Configuration', () => {
 describe('System - Authentication Flow', () => {
   describe('Password Hashing', () => {
     it('should use bcrypt for password hashing', () => {
-      // Bcrypt hash format: $2a$XX$...
+      // Bcrypt hash format: $2a$XX$ or $2b$XX$ followed by 53 characters (22 salt + 31 hash)
       const bcryptHashPattern = /^\$2[aby]?\$\d{1,2}\$.{53}$/
-      const sampleBcryptHash = '$2b$12$abcdefghijklmnopqrstuvwxyz123456789012345678901234'
+      // Real bcrypt hash example with proper 53 char suffix
+      const sampleBcryptHash = '$2b$12$K.0DYqVvJPY6G.5FT0Zc4eOZ9.3GxF7cT1hQdV5aJK8rL2mN1oP3q'
       expect(bcryptHashPattern.test(sampleBcryptHash)).toBe(true)
     })
 

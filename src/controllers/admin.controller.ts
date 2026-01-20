@@ -133,6 +133,15 @@ class AdminController {
         return response.notFound(res, 'User not found')
       }
 
+      // SECURITY: Prevent removing the last admin
+      if (user.role === 'admin' && role !== 'admin') {
+        const activeAdminCount = await userRepository.countActiveAdmins()
+        if (activeAdminCount <= 1) {
+          logger.warn('Attempted to demote last admin', { userId: id, by: req.user?.userId })
+          return response.badRequest(res, 'Cannot demote the last admin. Promote another user to admin first.')
+        }
+      }
+
       await userRepository.updateRole(id, role)
       logger.info('User role updated', { userId: id, newRole: role, by: req.user?.userId })
 
@@ -157,6 +166,15 @@ class AdminController {
       const user = await userRepository.findById(id)
       if (!user) {
         return response.notFound(res, 'User not found')
+      }
+
+      // SECURITY: Prevent deactivating the last admin
+      if (user.role === 'admin' && user.isActive && !isActive) {
+        const activeAdminCount = await userRepository.countActiveAdmins()
+        if (activeAdminCount <= 1) {
+          logger.warn('Attempted to deactivate last admin', { userId: id, by: req.user?.userId })
+          return response.badRequest(res, 'Cannot deactivate the last admin. Promote another user to admin first.')
+        }
       }
 
       await userRepository.setActiveStatus(id, isActive)

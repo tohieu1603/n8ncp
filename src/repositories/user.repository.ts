@@ -86,6 +86,14 @@ export class UserRepository extends BaseRepository<User> {
     return this.repository.count({ where: { role } })
   }
 
+  /**
+   * Count active admins (for last admin protection)
+   * SECURITY: Prevents removing the last admin from the system
+   */
+  async countActiveAdmins(): Promise<number> {
+    return this.repository.count({ where: { role: 'admin', isActive: true } })
+  }
+
   async getStats(): Promise<{
     total: number
     active: number

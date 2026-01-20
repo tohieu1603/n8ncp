@@ -18,11 +18,20 @@ import { User } from '../entities/user.entity'
 // Verification code expiry time (15 minutes)
 const VERIFICATION_EXPIRY_MINUTES = 15
 
+// Welcome bonus tokens for new users
+const WELCOME_BONUS_TOKENS = 100
+
 // Rate limiting for registration (prevent spam)
 const registrationAttempts = new Map<string, { count: number; firstAttempt: number }>()
 const REGISTRATION_WINDOW_MS = 60 * 60 * 1000 // 1 hour
 const MAX_REGISTRATIONS_PER_IP = 5
 const MAX_REGISTRATIONS_PER_EMAIL = 3
+
+// SECURITY: Account lockout for failed login attempts
+const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil?: number }>()
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes lockout
 
 // Cleanup old rate limit entries every 10 minutes
 setInterval(() => {
@@ -30,6 +39,12 @@ setInterval(() => {
   for (const [key, data] of registrationAttempts.entries()) {
     if (now - data.firstAttempt > REGISTRATION_WINDOW_MS) {
       registrationAttempts.delete(key)
+    }
+  }
+  // Cleanup login attempts
+  for (const [key, data] of loginAttempts.entries()) {
+    if (now - data.firstAttempt > LOGIN_ATTEMPT_WINDOW_MS && (!data.lockedUntil || now > data.lockedUntil)) {
+      loginAttempts.delete(key)
     }
   }
 }, 10 * 60 * 1000)
@@ -195,8 +210,13 @@ export class AuthService {
       throw new ValidationError('Invalid or expired verification code')
     }
 
-    // Mark user as verified
+    // Mark user as verified and grant welcome bonus if not already received
     user.isEmailVerified = true
+    if (!user.hasReceivedWelcomeBonus) {
+      user.tokenBalance = Number(user.tokenBalance) + WELCOME_BONUS_TOKENS
+      user.hasReceivedWelcomeBonus = true
+      logger.info('Welcome bonus granted', { userId: user.id, tokens: WELCOME_BONUS_TOKENS })
+    }
     await userRepository.save(user)
 
     // Delete used verification codes
@@ -250,6 +270,81 @@ export class AuthService {
   }
 
   /**
+   * Check and enforce login rate limiting / account lockout
+   * SECURITY: Prevents brute force attacks
+   */
+  private checkLoginRateLimit(email: string, ip: string): void {
+    const now = Date.now()
+    const key = `login:${email.toLowerCase()}`
+    const ipKey = `login_ip:${ip}`
+
+    // Check email-based lockout
+    const emailData = loginAttempts.get(key)
+    if (emailData?.lockedUntil && now < emailData.lockedUntil) {
+      const waitMinutes = Math.ceil((emailData.lockedUntil - now) / 60000)
+      logger.warn('Login blocked - account locked', { email, waitMinutes })
+      throw new RateLimitError(`Tài khoản tạm khóa do đăng nhập sai quá nhiều lần. Vui lòng thử lại sau ${waitMinutes} phút.`)
+    }
+
+    // Check IP-based lockout
+    const ipData = loginAttempts.get(ipKey)
+    if (ipData?.lockedUntil && now < ipData.lockedUntil) {
+      const waitMinutes = Math.ceil((ipData.lockedUntil - now) / 60000)
+      logger.warn('Login blocked - IP locked', { ip, waitMinutes })
+      throw new RateLimitError(`Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau ${waitMinutes} phút.`)
+    }
+  }
+
+  /**
+   * Record failed login attempt
+   */
+  private recordFailedLogin(email: string, ip: string): void {
+    const now = Date.now()
+    const key = `login:${email.toLowerCase()}`
+    const ipKey = `login_ip:${ip}`
+
+    // Record for email
+    const emailData = loginAttempts.get(key)
+    if (emailData) {
+      if (now - emailData.firstAttempt > LOGIN_ATTEMPT_WINDOW_MS) {
+        loginAttempts.set(key, { count: 1, firstAttempt: now })
+      } else {
+        emailData.count++
+        if (emailData.count >= MAX_LOGIN_ATTEMPTS) {
+          emailData.lockedUntil = now + LOCKOUT_DURATION_MS
+          logger.warn('Account locked due to failed attempts', { email, attempts: emailData.count })
+        }
+      }
+    } else {
+      loginAttempts.set(key, { count: 1, firstAttempt: now })
+    }
+
+    // Record for IP
+    const ipData = loginAttempts.get(ipKey)
+    if (ipData) {
+      if (now - ipData.firstAttempt > LOGIN_ATTEMPT_WINDOW_MS) {
+        loginAttempts.set(ipKey, { count: 1, firstAttempt: now })
+      } else {
+        ipData.count++
+        if (ipData.count >= MAX_LOGIN_ATTEMPTS * 2) { // IP gets more attempts (multiple accounts)
+          ipData.lockedUntil = now + LOCKOUT_DURATION_MS
+          logger.warn('IP locked due to failed attempts', { ip, attempts: ipData.count })
+        }
+      }
+    } else {
+      loginAttempts.set(ipKey, { count: 1, firstAttempt: now })
+    }
+  }
+
+  /**
+   * Clear login attempts on successful login
+   */
+  private clearLoginAttempts(email: string): void {
+    const key = `login:${email.toLowerCase()}`
+    loginAttempts.delete(key)
+  }
+
+  /**
    * Login user
    */
   async login(
@@ -257,14 +352,21 @@ export class AuthService {
     password: string,
     metadata?: { ip?: string; userAgent?: string }
   ): Promise<AuthResponse> {
+    const ip = metadata?.ip || 'unknown'
+
+    // SECURITY: Check rate limit and lockout status
+    this.checkLoginRateLimit(email, ip)
+
     const user = await userRepository.findByEmail(email)
     if (!user || !user.password) {
+      this.recordFailedLogin(email, ip)
       throw new UnauthorizedError('Invalid credentials')
     }
 
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
+      this.recordFailedLogin(email, ip)
       throw new UnauthorizedError('Invalid credentials')
     }
 
@@ -277,6 +379,9 @@ export class AuthService {
     if (!user.isActive) {
       throw new UnauthorizedError('Account is disabled')
     }
+
+    // SECURITY: Clear failed attempts on successful login
+    this.clearLoginAttempts(email)
 
     logger.info('User logged in', { userId: user.id, email: user.email })
 

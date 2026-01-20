@@ -142,13 +142,14 @@ describe('KIE API Service', () => {
 
   describe('getTaskStatus', () => {
     it('should get task status successfully', async () => {
+      // Mock API returns 'state' field - service normalizes to 'status'
       const mockResponse = {
         code: 200,
         msg: 'success',
         data: {
           taskId: 'task-123',
-          status: 'SUCCESS',
-          output: { media_url: 'https://example.com/image.png' },
+          state: 'success', // API uses 'state', not 'status'
+          resultJson: JSON.stringify({ resultUrls: ['https://example.com/image.png'] }),
         },
       }
       mockFetch.mockResolvedValueOnce({
@@ -159,7 +160,7 @@ describe('KIE API Service', () => {
       const result = await getTaskStatus('task-123')
 
       expect(result.code).toBe(200)
-      expect(result.data.status).toBe('SUCCESS')
+      expect(result.data.status).toBe('SUCCESS') // Service normalizes state->status
       expect(result.data.output?.media_url).toBe('https://example.com/image.png')
     })
 
@@ -199,13 +200,14 @@ describe('KIE API Service', () => {
     })
 
     it('should handle failed task status', async () => {
+      // Mock API returns 'state' and 'failMsg' - service normalizes them
       const mockResponse = {
         code: 200,
         msg: 'success',
         data: {
           taskId: 'task-123',
-          status: 'FAILED',
-          error: 'Generation failed: invalid prompt',
+          state: 'failed', // API uses 'state', not 'status'
+          failMsg: 'Generation failed: invalid prompt',
         },
       }
       mockFetch.mockResolvedValueOnce({
@@ -215,7 +217,7 @@ describe('KIE API Service', () => {
 
       const result = await getTaskStatus('task-123')
 
-      expect(result.data.status).toBe('FAILED')
+      expect(result.data.status).toBe('FAILED') // Service normalizes state->status
       expect(result.data.error).toBe('Generation failed: invalid prompt')
     })
 
