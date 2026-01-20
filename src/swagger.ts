@@ -21,12 +21,8 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:4000',
-        description: 'Development server',
-      },
-      {
-        url: 'https://api.imagegen.ai',
-        description: 'Production server',
+        url: '/',
+        description: 'Current server (auto-detect from browser URL)',
       },
     ],
     components: {
