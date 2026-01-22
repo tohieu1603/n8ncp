@@ -29,6 +29,9 @@ export class ApiKey {
   @Column()
   keyPrefix: string // First 8 chars for display
 
+  @Column({ nullable: true })
+  encryptedKey: string // Encrypted full key for retrieval
+
   @Column({ type: 'timestamp', nullable: true })
   lastUsedAt: Date | null
 

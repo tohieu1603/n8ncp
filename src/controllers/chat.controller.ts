@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { chat, chatStream, AGENTS, AgentId, calculateCost, ChatMessage, isProAgent, getTokenMultiplier, calculateTokensWithMultiplier } from '../services/gemini-chat.service'
 import { logUsage, updateUserCredits } from '../services/usage.service'
+import { addChatMessages, getConversation } from '../services/conversation.service'
 import { response } from '../utils/response'
 import { validate } from '../utils/validation'
 import { logger } from '../utils/logger'
@@ -30,7 +31,7 @@ export class ChatController {
    */
   async sendMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { messages, agentId, imageUrl } = req.body
+      const { messages, agentId, imageUrl, conversationId } = req.body
 
       // Validation
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -104,8 +105,25 @@ export class ChatController {
       // Update user credits with billed tokens
       await updateUserCredits(req.user!.userId, billedTokens, cost)
 
+      const assistantContent = result.choices[0]?.message?.content || ''
+
+      // Save messages to conversation if conversationId provided
+      if (conversationId) {
+        const conversation = await getConversation(conversationId, req.user!.userId)
+        if (conversation) {
+          const userContent = typeof lastMessage.content === 'string'
+            ? lastMessage.content
+            : lastMessage.content
+          await addChatMessages(conversationId, userContent, assistantContent, {
+            agentId: validAgentId,
+            tokensUsed: billedTokens,
+            cost,
+          })
+        }
+      }
+
       response.success(res, {
-        message: result.choices[0]?.message?.content || '',
+        message: assistantContent,
         usage: {
           promptTokens: result.usage?.prompt_tokens || 0,
           completionTokens: result.usage?.completion_tokens || 0,
@@ -126,7 +144,7 @@ export class ChatController {
    */
   async streamMessage(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { messages, agentId, imageUrl } = req.body
+      const { messages, agentId, imageUrl, conversationId } = req.body
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         response.badRequest(res, 'Messages array is required')
@@ -204,6 +222,22 @@ export class ChatController {
       })
 
       await updateUserCredits(req.user!.userId, billedTokens, cost)
+
+      // Save messages to conversation if conversationId provided
+      if (conversationId) {
+        const conversation = await getConversation(conversationId, req.user!.userId)
+        if (conversation) {
+          const lastMessage = messages[messages.length - 1]
+          const userContent = typeof lastMessage.content === 'string'
+            ? lastMessage.content
+            : lastMessage.content
+          await addChatMessages(conversationId, userContent, totalContent, {
+            agentId: validAgentId,
+            tokensUsed: billedTokens,
+            cost,
+          })
+        }
+      }
 
       res.write(`data: ${JSON.stringify({ done: true, usage: { rawTokens, billedTokens, tokenMultiplier, cost } })}\n\n`)
       res.end()

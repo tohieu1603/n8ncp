@@ -8,7 +8,7 @@ validateEnvironment()
 import express from 'express'
 import cors from 'cors'
 import { AppDataSource } from './data-source'
-import { authRoutes, generateRoutes, usageRoutes, downloadRoutes, chatRoutes, keysRoutes, billingRoutes, convertRoutes, adminRoutes, articleImageRoutes, blogRoutes } from './routes'
+import { authRoutes, generateRoutes, usageRoutes, downloadRoutes, chatRoutes, keysRoutes, billingRoutes, convertRoutes, adminRoutes, articleImageRoutes, blogRoutes, conversationRoutes } from './routes'
 import openaiRoutes from './routes/openai.routes'
 import googleAuthRoutes from './routes/google-auth.routes'
 import { billingController } from './controllers/billing.controller'
@@ -70,6 +70,7 @@ app.use('/api/convert', convertRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/article-images', generateLimiter, articleImageRoutes)
 app.use('/api/blog', blogRoutes)
+app.use('/api/conversations', chatLimiter, conversationRoutes)
 
 // OpenAI-compatible API (for external API key access)
 app.use('/v1', openaiApiLimiter, openaiRoutes)
